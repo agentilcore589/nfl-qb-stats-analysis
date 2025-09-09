@@ -1,0 +1,141 @@
+---
+title: "NFL Quarterback Analytics: Correlation Study (2019–2023)"
+author: "Andrew Gentilcore"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# 📌 Project Overview
+
+This project analyzes NFL quarterback statistics from **2019–2023**, focusing on the relationships between:  
+1. **Yards After Catch (YAC)** vs **Passing First Downs**  
+2. **Passing Attempts** vs **Interceptions**  
+
+I applied correlation analysis (Pearson and Spearman) and create visualizations to understand how these metrics relate to quarterback performance and team outcomes.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# 📊 Load Data & Libraries
+
+```{r}
+library(nflverse)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(gt)
+library(flextable)
+library(regclass)
+
+# Load data for 2019-2023
+stats <- load_player_stats(seasons = 2019:2023)
+```
+
+# 🔎 Exploratory Data Analysis
+
+### Top 5 Most Common Positions
+```{r}
+position_counts <- as.data.frame(table(stats$position)) %>%
+  arrange(desc(Freq)) %>%
+  head(5)
+
+# Create a nice table
+position_counts %>%
+  rename(Position = Var1, Count = Freq) %>%
+  gt() %>%
+  tab_header(title = "Top 5 Most Common Positions") %>%
+  cols_label(Position = "Position", Count = "Count")
+```
+
+# 📈 Correlation Analysis
+
+### 1. Yards After Catch vs Passing First Downs
+
+```{r}
+# Pearson correlation test
+assoc_yac_fd <- associate(passing_yards_after_catch ~ passing_first_downs, data = stats)
+assoc_yac_fd
+```
+
+**Interpretation:** A strong positive correlation would suggest that quarterbacks whose receivers gain more yards after catch are more likely to sustain drives by converting first downs.
+
+📊 Visualization:
+
+```{r}
+ggplot(stats, aes(x = passing_first_downs, y = passing_yards_after_catch)) +
+  geom_point(color = "steelblue", alpha = 0.7, size = 3) +
+  geom_smooth(method = "lm", color = "darkred", fill = "pink", se = TRUE) +
+  theme_minimal() +
+  labs(title = "Relationship Between Yards After Catch & First Downs",
+       x = "Passing First Downs",
+       y = "Passing Yards After Catch")
+```
+
+---
+
+### 2. Passing Attempts vs Interceptions
+
+```{r}
+# Spearman correlation test (association)
+assoc_att_int <- associate(interceptions ~ attempts, data = stats)
+assoc_att_int
+```
+
+**Interpretation:** A positive correlation would indicate that quarterbacks with more passing attempts also throw more interceptions, likely reflecting game scripts or riskier passing strategies.
+
+📊 Visualization:
+
+```{r}
+# Clean data to remove missing values
+cleaned_stats <- stats %>%
+  filter(!is.na(attempts), !is.na(interceptions),
+         is.finite(attempts), is.finite(interceptions),
+         attempts > 0, interceptions >= 0)
+
+ggplot(cleaned_stats, aes(x = attempts, y = interceptions)) +
+  geom_point(color = "steelblue", alpha = 0.7, size = 3) +
+  geom_smooth(method = "loess", color = "darkred", se = TRUE) +
+  theme_minimal() +
+  labs(title = "Association Between Interceptions and Passing Attempts",
+       x = "Passing Attempts",
+       y = "Interceptions")
+```
+
+# 📊 Distribution of Passing Yards (QBs Only)
+
+```{r}
+qb_stats <- stats %>% filter(position == "QB")
+
+ggplot(qb_stats, aes(x = passing_yards)) +
+  geom_histogram(binwidth = 100, fill = "steelblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Passing Yards for Quarterbacks (2019–2023)",
+       x = "Passing Yards", y = "Frequency") +
+  theme_minimal()
+```
+
+# 📋 Summary Statistics
+
+```{r}
+summary_table <- stats %>%
+  select(passing_yards_after_catch, passing_first_downs, interceptions, attempts)
+
+summary(summary_table)
+```
+
+# 🏟️ Football Insights
+
+- **YAC vs First Downs:** Shows how important ball placement and receiver ability are for sustaining drives.  
+- **Attempts vs Interceptions:** Demonstrates the tradeoff between high passing volume and turnover risk.  
+- **QB Passing Yards Distribution:** Confirms variation in passing production across quarterbacks.  
+
+# 🚀 Next Steps
+
+- Extend analysis to include **completion percentage, touchdowns, and sack rate**.  
+- Build predictive models to forecast QB efficiency based on these features.  
+- Compare rookie vs veteran quarterbacks.  
+
+# 👤 Author
+
+Andrew Gentilcore — Senior at the University of Tennessee, Knoxville  
+Focus: **NFL & sports analytics, regression modeling, and data-driven football insights**
